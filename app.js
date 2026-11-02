@@ -5,8 +5,15 @@ let toastTimer;
 
 async function api(url, options = {}) {
   const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Something went wrong.');
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
+  if (!response.ok) {
+    const detail = data.error || `Server returned HTTP ${response.status}.`;
+    throw new Error(detail);
+  }
+  if (!contentType.includes('application/json')) {
+    throw new Error('The website is not connected to its Node.js server. In Render, deploy this repository as a Web Service (Blueprint), not a Static Site.');
+  }
   return data;
 }
 function showToast(message) {
@@ -32,9 +39,19 @@ function render() {
   $('logoutBtn').classList.toggle('hidden', !isAdmin);
 }
 async function load() {
+  // Load and display the public chart first. A failed session check must not hide it.
   chartData = await api('/api/chart');
-  const me = await api('/api/me'); isAdmin = me.admin;
   render();
+  try {
+    const me = await api('/api/me');
+    isAdmin = Boolean(me.admin);
+    render();
+  } catch (err) {
+    isAdmin = false;
+    render();
+    showToast('Chart loaded, but admin status could not be checked.');
+    console.error('Admin session check failed:', err);
+  }
 }
 function openModal(id) { $(id).classList.remove('hidden'); }
 function closeModal(id) { $(id).classList.add('hidden'); }
@@ -84,4 +101,7 @@ $('deletePosition').addEventListener('click', async () => {
   try { await api('/api/chart', { method: 'PUT', body: JSON.stringify(chartData) }); closeModal('positionModal'); render(); showToast('Position deleted.'); }
   catch (err) { $('positionError').textContent = err.message; await load(); }
 });
-load().catch(err => { $('chart').innerHTML = `<div class="loading">Unable to load chart: ${escapeHtml(err.message)}</div>`; });
+load().catch(err => {
+  console.error('KNG chart loading failed:', err);
+  $('chart').innerHTML = `<div class="loading">Unable to load chart: ${escapeHtml(err.message)}<br><br><span style="color:#aaa">If this is hosted on Render, make sure you created it using <b>New → Blueprint</b> and not <b>Static Site</b>.</span></div>`;
+});

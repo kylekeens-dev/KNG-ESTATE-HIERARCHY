@@ -90,7 +90,17 @@ function saveChart(chart) {
   fs.renameSync(temp, DATA_FILE);
 }
 
-app.get('/api/chart', (req, res) => res.json(readChart()));
+app.get('/api/health', (req, res) => res.json({ ok: true, service: 'kng-estate-org-chart' }));
+app.get('/api/chart', (req, res) => {
+  try {
+    const chart = readChart();
+    if (!chart || !Array.isArray(chart.nodes)) throw new Error('The saved chart data is invalid.');
+    res.json(chart);
+  } catch (error) {
+    console.error('Could not read chart data:', error);
+    res.status(500).json({ error: 'The server could not read the saved chart data. Check the Render disk and server logs.' });
+  }
+});
 app.get('/api/me', (req, res) => res.json({ admin: isAdmin(req) }));
 app.post('/api/login', (req, res) => {
   const password = req.body && req.body.password;
