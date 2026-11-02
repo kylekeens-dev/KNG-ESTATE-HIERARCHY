@@ -1,0 +1,10 @@
+{
+  "name": "kng-estate-org-chart",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private-edit KNG Estate organisation chart",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "dev": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "express": "^4.21.2" }
+}

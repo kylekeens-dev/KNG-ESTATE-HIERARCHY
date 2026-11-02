@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#090909" />
+  <title>KNG Estate | Organisation Chart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">K</span><span>KNG <b>ESTATE</b><small>ORGANISATION</small></span></a>
+    <div class="top-actions">
+      <span class="live-dot">LIVE STRUCTURE</span>
+      <button class="btn btn-outline" id="loginOpen">Admin login</button>
+      <button class="btn btn-outline hidden" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow"><span></span> LEADERSHIP &amp; MANAGEMENT</div>
+      <h1>KNG ESTATE <span>ORGANISATION</span></h1>
+      <p>A clear view of the people and positions behind KNG Estate.</p>
+      <div class="hero-meta"><span id="positionCount">0 POSITIONS</span><i></i><span id="updatedLabel">CURRENT STRUCTURE</span></div>
+    </section>
+
+    <section class="toolbar hidden" id="adminToolbar">
+      <div><strong>Admin editing enabled</strong><small>Changes are saved to the live chart.</small></div>
+      <button class="btn btn-primary" id="addPosition">＋ Add position</button>
+    </section>
+
+    <section class="chart-shell">
+      <div class="chart-heading"><div><span class="section-kicker">THE STRUCTURE</span><h2>Leadership chart</h2></div><span class="scroll-hint">SCROLL TO EXPLORE <span>↔</span></span></div>
+      <div id="chartViewport" class="chart-viewport"><div id="chart" class="chart"><div class="loading">Loading organisation chart...</div></div></div>
+      <div class="chart-footer"><span><i class="key-dot"></i> KNG ESTATE LEADERSHIP</span><span>INTERNAL ORGANISATION STRUCTURE</span></div>
+    </section>
+    <footer><span>© KNG ESTATE</span><span>BUILT FOR THE COMMUNITY.</span></footer>
+  </main>
+
+  <div class="modal-backdrop hidden" id="loginModal">
+    <form class="modal" id="loginForm"><button type="button" class="modal-close" data-close="loginModal">×</button><div class="modal-icon">K</div><span class="section-kicker">RESTRICTED ACCESS</span><h2>Admin login</h2><p>Sign in to manage the KNG organisation chart.</p><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" required /><div class="form-error" id="loginError"></div><button class="btn btn-primary full" type="submit">Log in securely</button><small class="privacy-note">Editing access is restricted to the administrator.</small></form>
+  </div>
+
+  <div class="modal-backdrop hidden" id="positionModal">
+    <form class="modal position-modal" id="positionForm"><button type="button" class="modal-close" data-close="positionModal">×</button><span class="section-kicker">CHART MANAGEMENT</span><h2 id="positionModalTitle">Add a position</h2><p>Add a role and assign it to the correct manager.</p><input type="hidden" id="editingId" /><label for="roleInput">Position / role</label><input id="roleInput" maxlength="70" placeholder="e.g. Community Director" required /><label for="nameInput">Person's name <span class="optional">OPTIONAL</span></label><input id="nameInput" maxlength="70" placeholder="Enter name" /><label for="parentInput">Reports to</label><select id="parentInput"></select><div class="form-error" id="positionError"></div><div class="modal-actions"><button class="btn btn-outline" type="button" data-close="positionModal">Cancel</button><button class="btn btn-primary" type="submit">Save position</button></div><button class="delete-link hidden" type="button" id="deletePosition">Delete this position</button></form>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
