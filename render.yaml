@@ -1,20 +1,6 @@
 services:
   - type: web
-    name: kng-estate-org-chart
-    runtime: node
-    plan: starter
-    buildCommand: npm install
-    startCommand: npm start
-    disk:
-      name: kng-org-chart-data
-      mountPath: /var/data
-      sizeGB: 1
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATA_FILE
-        value: /var/data/chart.json
-      - key: ADMIN_PASSWORD
-        sync: false
-      - key: SESSION_SECRET
-        generateValue: true
+    name: kng-estate-hierarchy
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .

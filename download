@@ -1,4 +1,2 @@
-node_modules/
-data/chart.json
-.env
 .DS_Store
+Thumbs.db

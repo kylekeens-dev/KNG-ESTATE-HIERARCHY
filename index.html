@@ -1,55 +1,68 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#090909" />
-  <title>KNG Estate | Organisation Chart</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090909">
+  <title>KNG Estate | Organisation</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">K</span><span>KNG <b>ESTATE</b><small>ORGANISATION</small></span></a>
+    <a class="brand" href="#top" aria-label="KNG Estate home">
+      <span class="brand-mark">K</span>
+      <span class="brand-copy"><strong>KNG <i>ESTATE</i></strong><small>ORGANISATION</small></span>
+    </a>
     <div class="top-actions">
-      <span class="live-dot">LIVE STRUCTURE</span>
-      <button class="btn btn-outline" id="loginOpen">Admin login</button>
-      <button class="btn btn-outline hidden" id="logoutBtn">Log out</button>
+      <span class="live"><span></span> LIVE STRUCTURE</span>
+      <button class="button button-quiet" id="editToggle">Edit chart</button>
     </div>
   </header>
 
-  <main>
+  <main id="top">
     <section class="hero">
       <div class="eyebrow"><span></span> LEADERSHIP &amp; MANAGEMENT</div>
-      <h1>KNG ESTATE <span>ORGANISATION</span></h1>
+      <h1>KNG ESTATE <em>ORGANISATION</em></h1>
       <p>A clear view of the people and positions behind KNG Estate.</p>
-      <div class="hero-meta"><span id="positionCount">0 POSITIONS</span><i></i><span id="updatedLabel">CURRENT STRUCTURE</span></div>
+      <div class="stats"><strong id="positionCount">0 POSITIONS</strong><span></span><strong>CURRENT STRUCTURE</strong></div>
     </section>
 
-    <section class="toolbar hidden" id="adminToolbar">
-      <div><strong>Admin editing enabled</strong><small>Changes are saved to the live chart.</small></div>
-      <button class="btn btn-primary" id="addPosition">＋ Add position</button>
+    <section class="chart-panel">
+      <div class="panel-heading">
+        <div><div class="section-kicker">THE STRUCTURE</div><h2>Leadership chart</h2></div>
+        <div class="scroll-hint">SCROLL TO EXPLORE <b>↔</b></div>
+      </div>
+      <div class="chart-viewport" id="chartViewport">
+        <div class="chart" id="chart" aria-live="polite"></div>
+      </div>
+      <div class="panel-footer"><span><i></i> KNG ESTATE LEADERSHIP</span><span>INTERNAL ORGANISATION STRUCTURE</span></div>
     </section>
 
-    <section class="chart-shell">
-      <div class="chart-heading"><div><span class="section-kicker">THE STRUCTURE</span><h2>Leadership chart</h2></div><span class="scroll-hint">SCROLL TO EXPLORE <span>↔</span></span></div>
-      <div id="chartViewport" class="chart-viewport"><div id="chart" class="chart"><div class="loading">Loading organisation chart...</div></div></div>
-      <div class="chart-footer"><span><i class="key-dot"></i> KNG ESTATE LEADERSHIP</span><span>INTERNAL ORGANISATION STRUCTURE</span></div>
+    <section class="editor" id="editor" hidden>
+      <div class="editor-heading"><div><div class="section-kicker">MANUAL EDITOR</div><h2>Manage your structure</h2><p>Changes are saved in this browser automatically. No account or login is used.</p></div><button class="button button-quiet" id="closeEditor">Close editor</button></div>
+      <div class="editor-grid">
+        <form id="positionForm" class="editor-card">
+          <h3 id="formHeading">Add a position</h3>
+          <label>Position / role title<input id="roleTitle" maxlength="60" placeholder="e.g. Community Director" required></label>
+          <label>Name <span class="optional">(optional)</span><input id="personName" maxlength="60" placeholder="Enter the person's name"></label>
+          <label>Reports to<select id="parentSelect"><option value="">Top level</option></select></label>
+          <div class="form-actions"><button class="button button-primary" type="submit" id="savePosition">Add position</button><button class="button button-quiet" type="button" id="cancelEdit" hidden>Cancel</button></div>
+          <p class="hint">Select a position in the chart to edit it. You can also add roles beneath any existing position.</p>
+        </form>
+        <div class="editor-card tools-card">
+          <h3>Save and move your chart</h3>
+          <p>Keep a backup or move your structure to another browser.</p>
+          <div class="tool-buttons"><button class="button button-primary" id="exportBtn">Export chart data</button><label class="button button-quiet file-button">Import chart data<input type="file" id="importFile" accept="application/json,.json"></label></div>
+          <button class="text-button danger-text" id="resetBtn">Reset to original KNG structure</button>
+          <p class="hint">This is a static website. Edits are stored on this device/browser only. Export your data to keep a backup or import it on another device.</p>
+        </div>
+      </div>
+      <div class="selected-note" id="selectedNote">Select a chart position to edit its title, name or reporting line.</div>
     </section>
-    <footer><span>© KNG ESTATE</span><span>BUILT FOR THE COMMUNITY.</span></footer>
+
+    <footer class="site-footer"><span>© KNG ESTATE</span><span>BUILT FOR THE COMMUNITY.</span></footer>
   </main>
-
-  <div class="modal-backdrop hidden" id="loginModal">
-    <form class="modal" id="loginForm"><button type="button" class="modal-close" data-close="loginModal">×</button><div class="modal-icon">K</div><span class="section-kicker">RESTRICTED ACCESS</span><h2>Admin login</h2><p>Sign in to manage the KNG organisation chart.</p><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" required /><div class="form-error" id="loginError"></div><button class="btn btn-primary full" type="submit">Log in securely</button><small class="privacy-note">Editing access is restricted to the administrator.</small></form>
-  </div>
-
-  <div class="modal-backdrop hidden" id="positionModal">
-    <form class="modal position-modal" id="positionForm"><button type="button" class="modal-close" data-close="positionModal">×</button><span class="section-kicker">CHART MANAGEMENT</span><h2 id="positionModalTitle">Add a position</h2><p>Add a role and assign it to the correct manager.</p><input type="hidden" id="editingId" /><label for="roleInput">Position / role</label><input id="roleInput" maxlength="70" placeholder="e.g. Community Director" required /><label for="nameInput">Person's name <span class="optional">OPTIONAL</span></label><input id="nameInput" maxlength="70" placeholder="Enter name" /><label for="parentInput">Reports to</label><select id="parentInput"></select><div class="form-error" id="positionError"></div><div class="modal-actions"><button class="btn btn-outline" type="button" data-close="positionModal">Cancel</button><button class="btn btn-primary" type="submit">Save position</button></div><button class="delete-link hidden" type="button" id="deletePosition">Delete this position</button></form>
-  </div>
-  <div class="toast" id="toast"></div>
-  <script src="/app.js"></script>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
 </body>
 </html>
