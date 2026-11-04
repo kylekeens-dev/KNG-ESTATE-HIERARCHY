@@ -40,60 +40,19 @@ function loadData(){
 function saveData(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(positions)); }
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function childrenOf(id){return positions.filter(p=>p.parent===id);}
-function nodeWidth(position){
-  // Keep cards wide enough for long role titles without letting one title
-  // distort the whole chart.
-  return Math.max(132, Math.min(208, Math.ceil((String(position.title).length * 6.5) + 30)));
-}
-function buildLayout(position, depth=0){
-  const children=childrenOf(position.id).map(child=>buildLayout(child,depth+1));
-  const width=nodeWidth(position);
-  const gap=22;
-  const childrenWidth=children.reduce((sum,child)=>sum+child.subtreeWidth,0)+Math.max(0,children.length-1)*gap;
-  return {position,depth,width,children,subtreeWidth:Math.max(width,childrenWidth)};
-}
-function placeLayout(item,left,nodes,edges){
-  const center=left+item.subtreeWidth/2;
-  const y=26+item.depth*86;
-  nodes.push({position:item.position,x:center-item.width/2,y,width:item.width});
-  if(item.children.length){
-    const gap=22;
-    const total=item.children.reduce((sum,child)=>sum+child.subtreeWidth,0)+gap*(item.children.length-1);
-    let childLeft=left+(item.subtreeWidth-total)/2;
-    const childCenters=[];
-    item.children.forEach(child=>{
-      const childCenter=childLeft+child.subtreeWidth/2;
-      childCenters.push(childCenter);
-      placeLayout(child,childLeft,nodes,edges);
-      childLeft+=child.subtreeWidth+gap;
-    });
-    const parentBottom=y+46;
-    const branchY=parentBottom+19;
-    const childTop=y+86;
-    edges.push(`M ${center} ${parentBottom} V ${branchY}`);
-    if(childCenters.length>1) edges.push(`M ${childCenters[0]} ${branchY} H ${childCenters[childCenters.length-1]}`);
-    childCenters.forEach(childCenter=>edges.push(`M ${childCenter} ${branchY} V ${childTop}`));
-  }
+function renderTreeNode(position, isRoot=false){
+  const children=childrenOf(position.id);
+  const selected=selectedId===position.id?' selected':'';
+  const name=position.name?`<span class="person">${escapeHtml(position.name)}</span>`:'';
+  const card=`<button class="node${isRoot?' root-node':''}${selected}" data-node="${escapeHtml(position.id)}" type="button"><span>${escapeHtml(position.title)}</span>${name}</button>`;
+  const branch=children.length?`<ul>${children.map(child=>renderTreeNode(child)).join('')}</ul>`:'';
+  return `<li${isRoot?' class="tree-root"':''}>${card}${branch}</li>`;
 }
 function render(){
-  const root=positions.find(p=>p.parent===null);
+  const roots=positions.filter(p=>p.parent===null);
   $('positionCount').textContent=`${positions.length} POSITIONS`;
-  if(!root){$('chart').innerHTML='<div class="empty-state">No top-level position found. Open Edit chart and add a position.</div>';return;}
-  const layout=buildLayout(root);
-  const nodes=[];const edges=[];
-  placeLayout(layout,0,nodes,edges);
-  const chartWidth=Math.max(layout.subtreeWidth,320);
-  const chartHeight=26+(Math.max(...nodes.map(n=>n.y))/1)+48;
-  const offset=(chartWidth-layout.subtreeWidth)/2;
-  const svgPaths=edges.map(path=>`<path d="${path}"/>`).join('');
-  const cards=nodes.map(({position,x,y,width})=>{
-    const selected=selectedId===position.id?' selected':'';
-    const name=position.name?`<span class="person">${escapeHtml(position.name)}</span>`:'';
-    return `<button class="node${position.parent===null?' root-node':''}${selected}" data-node="${escapeHtml(position.id)}" type="button" style="left:${x+offset-width/2}px;top:${y}px;width:${width}px"><span>${escapeHtml(position.title)}</span>${name}</button>`;
-  }).join('');
-  $('chart').style.width=`${chartWidth}px`;
-  $('chart').style.height=`${chartHeight}px`;
-  $('chart').innerHTML=`<svg class="chart-connectors" width="${chartWidth}" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}" aria-hidden="true">${svgPaths}</svg>${cards}`;
+  if(!roots.length){$('chart').innerHTML='<div class="empty-state">No top-level position found. Open Edit chart and add a position.</div>';return;}
+  $('chart').innerHTML=`<ul class="tree">${roots.map(root=>renderTreeNode(root,true)).join('')}</ul>`;
   $('chart').querySelectorAll('[data-node]').forEach(btn=>btn.addEventListener('click',()=>selectPosition(btn.dataset.node)));
   refreshParentOptions();
 }
