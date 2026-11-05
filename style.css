@@ -27,3 +27,12 @@
 .node .person{font-size:10px;color:#ff727d;margin-top:4px;font-weight:700;}
 .empty-state{color:#777;font-size:13px;padding:75px 20px;text-align:center;}
 @media(max-width:700px){.chart-viewport{padding:30px 14px 36px;max-height:620px}.tree li{padding-left:6px;padding-right:6px}.node{min-width:112px;max-width:170px;font-size:11px;padding:9px 10px}}
+
+
+/* One-page organisation view: scale the entire tree to fit, with no chart scrollbars. */
+.chart-viewport{width:100%;min-height:0;max-height:none;height:auto;overflow:hidden!important;padding:30px 18px 34px;scrollbar-width:none!important;}
+.chart-viewport::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}
+.chart{display:block;position:relative;margin:0 auto;overflow:visible;}
+.chart .tree{width:max-content;transform-origin:top center;}
+.scroll-hint{display:none!important;}
+@media(max-width:700px){.chart-viewport{padding:24px 8px 28px;}.chart-panel{overflow:hidden;}.chart .node{min-width:112px;max-width:180px;font-size:11px;}}

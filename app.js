@@ -55,6 +55,7 @@ function render(){
   $('chart').innerHTML=`<ul class="tree">${roots.map(root=>renderTreeNode(root,true)).join('')}</ul>`;
   $('chart').querySelectorAll('[data-node]').forEach(btn=>btn.addEventListener('click',()=>selectPosition(btn.dataset.node)));
   refreshParentOptions();
+  requestAnimationFrame(fitChartToPage);
 }
 function refreshParentOptions(){
   const select=$('parentSelect');const current=select.value;
@@ -86,5 +87,28 @@ $('closeEditor').addEventListener('click',()=>{$('editor').hidden=true;$('editTo
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(positions,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='kng-estate-organisation.json';a.click();URL.revokeObjectURL(url);toast('Chart data exported.');});
 $('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const parsed=JSON.parse(await file.text());if(!Array.isArray(parsed)||!parsed.every(p=>p.id&&p.title&&('parent'in p)))throw new Error('Invalid chart file');const ids=new Set(parsed.map(p=>p.id));if(parsed.some(p=>p.parent!==null&&!ids.has(p.parent)))throw new Error('Missing parent position');positions=parsed;saveData();resetForm();toast('Chart imported successfully.');}catch(err){alert('Could not import this file. Please choose a valid KNG chart JSON export.');}e.target.value='';});
 $('resetBtn').addEventListener('click',()=>{if(!confirm('Reset the chart to the original KNG structure? This will replace the saved chart in this browser.'))return;positions=structuredClone(starter);saveData();resetForm();toast('Original KNG structure restored.');});
+
+// Scale the complete hierarchy to the available panel width so desktop users
+// can see every department at once without a horizontal scrollbar.
+function fitChartToPage(){
+  const viewport=$('chartViewport');
+  const chart=$('chart');
+  const tree=chart.querySelector('.tree');
+  if(!viewport||!chart||!tree)return;
+  tree.style.transform='none';
+  tree.style.transformOrigin='top center';
+  chart.style.width='max-content';
+  chart.style.height='auto';
+  const naturalWidth=tree.scrollWidth;
+  const naturalHeight=tree.scrollHeight;
+  const availableWidth=Math.max(240,viewport.clientWidth-36);
+  const scale=Math.min(1,availableWidth/naturalWidth);
+  tree.style.transform=`scale(${scale})`;
+  chart.style.width=`${naturalWidth*scale}px`;
+  chart.style.height=`${naturalHeight*scale}px`;
+  viewport.style.height=`${Math.ceil(naturalHeight*scale+64)}px`;
+}
+window.addEventListener('resize',()=>requestAnimationFrame(fitChartToPage));
+
 let toastTimer;function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2500);}
 render();
