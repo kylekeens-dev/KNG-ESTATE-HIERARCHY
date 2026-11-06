@@ -13,7 +13,7 @@ module.exports = {
     botToken: '',
     guildId: '',
     managementDiscordIds: [
-      '989965219579166780'
+      '989965219579166780'.
       '634491499576557596'
     ]
   },
