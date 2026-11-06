@@ -43,11 +43,12 @@ Set these in Render -> your service -> Environment:
 - `MANAGEMENT_DISCORD_IDS`: comma-separated Discord user IDs for initial Management accounts.
 - `DISCORD_BOT_TOKEN`: bot token used for server member search (keep secret).
 - `DISCORD_GUILD_ID`: Discord server ID used by staff search.
-- `SUPABASE_URL`: Supabase project URL.
-- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key.
+- `SUPABASE_URL`: `https://aevjkzbfjjctfxcfjsjv.supabase.co` (already filled into `.env.example`).
+- `SUPABASE_SECRET_KEY`: Supabase secret/service-role key. The publishable key is not a replacement for this server-side key.
+- `SUPABASE_PUBLISHABLE_KEY`: optional; not used by this server-only database integration.
 
-**Never put `SUPABASE_SERVICE_ROLE_KEY`, the Discord bot token, or OAuth client secret in frontend files or GitHub.**
-The Supabase service role key bypasses Row Level Security. It belongs only in the Node server's environment.
+**Never put `SUPABASE_SECRET_KEY`, the Discord bot token, or OAuth client secret in frontend files or GitHub.**
+The Supabase secret key bypasses Row Level Security. It belongs only in the Node server's environment.
 
 ## 3. Discord setup
 1. In Discord Developer Portal -> Applications -> your app -> OAuth2, add the redirect URI above.
@@ -81,7 +82,7 @@ backend does not trust a browser-supplied Management flag.
 ## 6. Data and security notes
 - The current website uses its own signed Discord OAuth session cookie. Supabase Auth is not used.
 - RLS is enabled on all application tables and no direct `anon` or `authenticated` policies are added.
-- All database access goes through the Express backend using the service role key.
+- All database access goes through the Express backend using the secret key.
 - Every management/roster/chart API route performs a server-side permission check.
 - `permission_audit_log` records roster, permission and organisation chart changes.
 - The SQL schema starts with empty team rosters. Existing JSON-file roster data is not automatically imported.
