@@ -9,16 +9,13 @@ module.exports = {
     clientId: '',
     clientSecret: '',
     redirectUri: 'https://YOUR-SERVICE.onrender.com/auth/discord/callback',
-    sessionSecret: 'e993c6d2e7996326c43605a48959f950ad392f9459fd78fae6f45dc68fa18e9bcdfd0eebf08aa97c83b915897508f89c',
-    botToken: '',
-    guildId: '',
+    sessionSecret: 'REPLACE_WITH_A_RANDOM_SECRET_AT_LEAST_32_CHARACTERS',
     managementDiscordIds: [
-      '989965219579166780'.
-      '634491499576557596'
+      // 'YOUR_DISCORD_USER_ID'
     ]
   },
   supabase: {
     url: 'https://aevjkzbfjjctfxcfjsjv.supabase.co',
-    secretKey: 'sb_secret__2L86gMoF09OYWXpNhZVAQ_g9XSmgDk'
+    secretKey: 'PASTE_YOUR_SB_SECRET_KEY_HERE'
   }
 };

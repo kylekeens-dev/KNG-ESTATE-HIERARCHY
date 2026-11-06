@@ -89,12 +89,12 @@ async function saveRoster(team){
 async function showManagement(){
  if(!management)return;
  setActive('[data-page="management"]');$('hero').hidden=true;
- $('pageContent').innerHTML=pageHeading('MANAGEMENT CONSOLE','Staff & permissions','Search Discord server members and assign team ADM access.')+
- `<div class="permission-layout"><section class="panel"><div class="kicker">STAFF SEARCH</div><h3>Find a Discord member</h3><p class="hint">Search by username, display name or nickname. Results come from your connected Discord server.</p><form id="staffSearch" class="search-row"><input name="q" placeholder="Search staff…" minlength="2" required><button class="button button-primary">Search</button></form><div id="searchResults" class="search-results"></div></section>
+ $('pageContent').innerHTML=pageHeading('MANAGEMENT CONSOLE','Staff & permissions','Allocate team ADM permissions without installing a Discord bot.')+
+ `<div class="permission-layout"><section class="panel"><div class="kicker">STAFF SEARCH</div><h3>Find a staff account</h3><p class="hint">Search people who have logged into the portal, or enter a Discord user ID manually. No server bot required.</p><form id="staffSearch" class="search-row"><input name="q" placeholder="Username, display name or Discord ID…" minlength="2" required><button class="button button-primary">Search</button></form><div id="searchResults" class="search-results"></div></section>
  <section class="panel"><div class="kicker">CURRENT ACCESS</div><h3>Team ADM assignments</h3><p class="hint">Select a person from search to allocate or remove their team permissions.</p><div id="permissionList" class="permission-list">Loading permissions…</div></section></div>`;
  await loadPermissions();
  $('staffSearch').addEventListener('submit',async e=>{
-  e.preventDefault();const q=new FormData(e.currentTarget).get('q');$('searchResults').innerHTML='<div class="loading"><span class="spinner"></span>Searching Discord…</div>';
+  e.preventDefault();const q=new FormData(e.currentTarget).get('q');$('searchResults').innerHTML='<div class="loading"><span class="spinner"></span>Searching registered staff…</div>';
   try{const result=await api(`/api/management/staff-search?q=${encodeURIComponent(q)}`);$('searchResults').innerHTML=result.members.length?result.members.map(m=>`<div class="staff-result"><div class="staff-meta"><strong>${esc(m.displayName)}</strong><small>${esc(m.username)} · ${m.id}</small></div><button class="button button-quiet" data-select-staff="${m.id}" data-name="${esc(m.displayName)}" data-username="${esc(m.username)}">Manage access</button></div>`).join(''):'<div class="notice">No matching server members found.</div>';
    $('searchResults').querySelectorAll('[data-select-staff]').forEach(b=>b.addEventListener('click',()=>selectStaff(b.dataset.selectStaff,b.dataset.name,b.dataset.username)));
   }catch(err){$('searchResults').innerHTML=`<div class="notice">${esc(err.message)}</div>`}

@@ -12,8 +12,6 @@ const CLIENT_ID = CONFIG.discord.clientId;
 const CLIENT_SECRET = CONFIG.discord.clientSecret;
 const REDIRECT_URI = CONFIG.discord.redirectUri;
 const SESSION_SECRET = CONFIG.discord.sessionSecret;
-const BOT_TOKEN = CONFIG.discord.botToken;
-const GUILD_ID = CONFIG.discord.guildId;
 const SUPABASE_URL = CONFIG.supabase.url;
 const SUPABASE_SECRET_KEY = CONFIG.supabase.secretKey;
 const COOKIE = 'kng_session';
@@ -27,12 +25,12 @@ const TEAM_LABELS = {
 const RANKS = ['ADM','AUX','LEAD','SUB-LEAD','MEMBERS','HELPERS'];
 const MANAGEMENT_IDS = new Set((CONFIG.discord.managementDiscordIds || []).map(x=>String(x).trim()).filter(Boolean));
 
-if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI || !SESSION_SECRET || SESSION_SECRET.length < 32) {
+if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI || !SESSION_SECRET || SESSION_SECRET.length < 32 || SESSION_SECRET.includes('REPLACE_WITH_')) {
   console.error('Missing Discord OAuth settings or SESSION_SECRET (minimum 32 characters).');
   process.exit(1);
 }
-if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
+if (!SUPABASE_URL || !SUPABASE_SECRET_KEY || SUPABASE_SECRET_KEY.includes('PASTE_YOUR_') || SUPABASE_SECRET_KEY.startsWith('sb_publishable_')) {
+  console.error('Missing Supabase secret key. Add the secret key for the configured project to config.js (not the publishable key).');
   process.exit(1);
 }
 
@@ -300,13 +298,26 @@ app.get('/api/management/staff-search',requireManagement,async(req,res,next)=>{
   try{
     const query=String(req.query.q||'').trim();
     if(query.length<2)return res.json({members:[]});
-    if(!BOT_TOKEN||!GUILD_ID)return res.status(503).json({error:'Staff search is not configured. Add DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in Render.'});
-    const url=`https://discord.com/api/v10/guilds/${encodeURIComponent(GUILD_ID)}/members/search?query=${encodeURIComponent(query)}&limit=25`;
-    const response=await fetch(url,{headers:{Authorization:`Bot ${BOT_TOKEN}`}});
-    const body=await response.json();
-    if(!response.ok)throw new Error(body.message||'Discord member search failed');
-    res.json({members:body.map(entry=>({...cleanMember({...entry.user,nick:entry.nick}),nick:entry.nick||null}))});
-  }catch(err){console.error('Staff search failed:',err);res.status(502).json({error:'Discord staff search failed. Check the bot token, server ID and Server Members Intent.'});}
+    // Bot-free directory: people appear after their first Discord OAuth login.
+    // Managers can also enter a Discord user ID directly to allocate access manually.
+    if(validDiscordId(query)){
+      const {data,error}=await supabase.from('staff_profiles')
+        .select('discord_id,username,display_name').eq('discord_id',query).maybeSingle();
+      if(error)failDb(error);
+      return res.json({members:[data?{
+        id:data.discord_id,username:data.username||'Discord user',displayName:data.display_name||data.username||data.discord_id
+      }:{id:query,username:'Discord user',displayName:'Manually added Discord user'}]});
+    }
+    const safe=query.replace(/[,%()]/g,' ').trim();
+    const {data,error}=await supabase.from('staff_profiles')
+      .select('discord_id,username,display_name')
+      .or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%,discord_id.ilike.%${safe}%`)
+      .order('display_name',{ascending:true}).limit(25);
+    if(error)failDb(error);
+    res.json({members:(data||[]).map(row=>({
+      id:row.discord_id,username:row.username||'Discord user',displayName:row.display_name||row.username||row.discord_id
+    }))});
+  }catch(err){next(err);}
 });
 
 app.get('/api/chart',requireManagement,async(req,res,next)=>{
