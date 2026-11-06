@@ -7,14 +7,15 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
-const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
-const SESSION_SECRET = process.env.SESSION_SECRET;
-const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const CONFIG = require('./config');
+const CLIENT_ID = CONFIG.discord.clientId;
+const CLIENT_SECRET = CONFIG.discord.clientSecret;
+const REDIRECT_URI = CONFIG.discord.redirectUri;
+const SESSION_SECRET = CONFIG.discord.sessionSecret;
+const BOT_TOKEN = CONFIG.discord.botToken;
+const GUILD_ID = CONFIG.discord.guildId;
+const SUPABASE_URL = CONFIG.supabase.url;
+const SUPABASE_SECRET_KEY = CONFIG.supabase.secretKey;
 const COOKIE = 'kng_session';
 const STATE_COOKIE = 'kng_oauth_state';
 const TEAMS = ['gangs','legal','actions','interactions','calls','order','knowledge','discord','tickets','wallstreet'];
@@ -24,7 +25,7 @@ const TEAM_LABELS = {
   tickets:'Tickets', wallstreet:'WallStreet'
 };
 const RANKS = ['ADM','AUX','LEAD','SUB-LEAD','MEMBERS','HELPERS'];
-const MANAGEMENT_IDS = new Set((process.env.MANAGEMENT_DISCORD_IDS || '').split(',').map(x=>x.trim()).filter(Boolean));
+const MANAGEMENT_IDS = new Set((CONFIG.discord.managementDiscordIds || []).map(x=>String(x).trim()).filter(Boolean));
 
 if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI || !SESSION_SECRET || SESSION_SECRET.length < 32) {
   console.error('Missing Discord OAuth settings or SESSION_SECRET (minimum 32 characters).');
