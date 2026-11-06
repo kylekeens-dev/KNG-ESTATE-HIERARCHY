@@ -95,8 +95,8 @@ async function showManagement(){
  await loadPermissions();
  $('staffSearch').addEventListener('submit',async e=>{
   e.preventDefault();const q=new FormData(e.currentTarget).get('q');$('searchResults').innerHTML='<div class="loading"><span class="spinner"></span>Searching Discord…</div>';
-  try{const result=await api(`/api/management/staff-search?q=${encodeURIComponent(q)}`);$('searchResults').innerHTML=result.members.length?result.members.map(m=>`<div class="staff-result"><div class="staff-meta"><strong>${esc(m.displayName)}</strong><small>${esc(m.username)} · ${m.id}</small></div><button class="button button-quiet" data-select-staff="${m.id}" data-name="${esc(m.displayName)}">Manage access</button></div>`).join(''):'<div class="notice">No matching server members found.</div>';
-   $('searchResults').querySelectorAll('[data-select-staff]').forEach(b=>b.addEventListener('click',()=>selectStaff(b.dataset.selectStaff,b.dataset.name)));
+  try{const result=await api(`/api/management/staff-search?q=${encodeURIComponent(q)}`);$('searchResults').innerHTML=result.members.length?result.members.map(m=>`<div class="staff-result"><div class="staff-meta"><strong>${esc(m.displayName)}</strong><small>${esc(m.username)} · ${m.id}</small></div><button class="button button-quiet" data-select-staff="${m.id}" data-name="${esc(m.displayName)}" data-username="${esc(m.username)}">Manage access</button></div>`).join(''):'<div class="notice">No matching server members found.</div>';
+   $('searchResults').querySelectorAll('[data-select-staff]').forEach(b=>b.addEventListener('click',()=>selectStaff(b.dataset.selectStaff,b.dataset.name,b.dataset.username)));
   }catch(err){$('searchResults').innerHTML=`<div class="notice">${esc(err.message)}</div>`}
  });
 }
@@ -104,14 +104,14 @@ async function loadPermissions(){
  const data=await api('/api/management/permissions');permissions=data.permissions;
  const ids=Object.keys(permissions);
  $('permissionList').innerHTML=ids.length?ids.map(id=>`<div class="permission-person"><div class="permission-person-top"><div><strong>${esc(id)}</strong><br><small>Discord account</small></div><button class="icon-button" data-edit-perm="${id}">Edit</button></div><div class="permission-tags">${permissions[id].map(t=>`<span class="tag">${TEAM_NAMES[t]}</span>`).join('')}</div></div>`).join(''):'<div class="member-empty">No team ADM permissions have been allocated yet.</div>';
- $('permissionList').querySelectorAll('[data-edit-perm]').forEach(b=>b.addEventListener('click',()=>selectStaff(b.dataset.editPerm,'Discord user')));
+ $('permissionList').querySelectorAll('[data-edit-perm]').forEach(b=>b.addEventListener('click',()=>selectStaff(b.dataset.editPerm,'Discord user','')));
 }
-async function selectStaff(id,name){
+async function selectStaff(id,name,username=''){
  const current=permissions[id]||[];
  $('searchResults').innerHTML=`<div class="panel" style="padding:14px"><div class="kicker">ALLOCATE TEAM ACCESS</div><h3>${esc(name)}</h3><small>${esc(id)}</small><div class="team-permissions">${Object.entries(TEAM_NAMES).map(([key,label])=>`<label class="check-team"><input type="checkbox" value="${key}" ${current.includes(key)?'checked':''}>${label}</label>`).join('')}</div><button class="button button-primary" id="savePermissions">Save permissions</button> <button class="button button-quiet" id="revokePermissions">Revoke all</button></div>`;
  $('savePermissions').addEventListener('click',async()=>{
   const teams=[...$('searchResults').querySelectorAll('input:checked')].map(x=>x.value);
-  try{await api(`/api/management/permissions/${id}`,{method:'PUT',body:JSON.stringify({teams})});toast('ADM permissions updated.');await loadPermissions();}catch(err){toast(err.message)}
+  try{await api(`/api/management/permissions/${id}`,{method:'PUT',body:JSON.stringify({teams,username,displayName:name})});toast('ADM permissions updated.');await loadPermissions();}catch(err){toast(err.message)}
  });
  $('revokePermissions').addEventListener('click',async()=>{
   try{await api(`/api/management/permissions/${id}`,{method:'PUT',body:JSON.stringify({teams:[]})});toast('All team ADM permissions revoked.');await loadPermissions();}catch(err){toast(err.message)}

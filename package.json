@@ -1,8 +1,8 @@
 {
   "name": "kng-staff-management-portal",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "KNG staff rosters and permission management portal",
+  "description": "KNG staff portal with Discord OAuth and Supabase-backed team permissions, rosters and organisation chart",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,6 +12,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
     "express": "^4.21.2"
   }
 }

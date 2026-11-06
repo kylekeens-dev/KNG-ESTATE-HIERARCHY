@@ -1,9 +1,9 @@
 'use strict';
 
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,7 +13,8 @@ const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
 const SESSION_SECRET = process.env.SESSION_SECRET;
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
-const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data', 'kng-portal.json');
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COOKIE = 'kng_session';
 const STATE_COOKIE = 'kng_oauth_state';
 const TEAMS = ['gangs','legal','actions','interactions','calls','order','knowledge','discord','tickets','wallstreet'];
@@ -29,6 +30,14 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI || !SESSION_SECRET || SESSION_
   console.error('Missing Discord OAuth settings or SESSION_SECRET (minimum 32 characters).');
   process.exit(1);
 }
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
+  process.exit(1);
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
+});
 
 app.set('trust proxy', 1);
 app.use(express.json({limit:'2mb'}));
@@ -46,13 +55,15 @@ function cookieValue(req,name){
   try{return decodeURIComponent(item.slice(name.length+1));}catch{return null;}
 }
 function setCookie(res,name,value,maxAge){
-  res.append('Set-Cookie',`${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}; Secure`);
+  const secure=process.env.NODE_ENV==='production'?' Secure':'';
+  res.append('Set-Cookie',`${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge};${secure}`);
 }
 function clearCookie(res,name){
-  res.append('Set-Cookie',`${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Secure`);
+  const secure=process.env.NODE_ENV==='production'?' Secure':'';
+  res.append('Set-Cookie',`${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0;${secure}`);
 }
 function makeSession(user){
-  const payload=b64(JSON.stringify({id:user.id,username:user.username,global_name:user.global_name||null,avatar:user.avatar||null,exp:Date.now()+7*86400000}));
+  const payload=b64(JSON.stringify({id:String(user.id),username:user.username,global_name:user.global_name||null,avatar:user.avatar||null,exp:Date.now()+7*86400000}));
   return `${payload}.${sign(payload)}`;
 }
 function getSession(req){
@@ -82,71 +93,52 @@ function emptyRoster(){
   const roster={}; for(const rank of RANKS)roster[rank]=[];
   return roster;
 }
-function starterData(){
-  const rosters={}; for(const team of TEAMS)rosters[team]=emptyRoster();
-  return {
-    rosters, permissions:{}, chart:{
-      title:'KNG ESTATE',subtitle:'Organisation structure',
-      nodes:[
-        {id:'gm',role:'General Manager',name:'',parentId:null},
-        {id:'community',role:'Community Director',name:'',parentId:'gm'},
-        {id:'orgs',role:'Orgs Director',name:'',parentId:'gm'},
-        {id:'wallstreet',role:'WallStreet Director',name:'',parentId:'gm'},
-        {id:'admin-manager',role:'Administration Manager',name:'',parentId:'community'},
-        {id:'culture-manager',role:'Culture Manager',name:'',parentId:'community'},
-        {id:'gangs-manager',role:'Manager Of Gangs',name:'',parentId:'orgs'},
-        {id:'legal-manager',role:'Manager Of Legal',name:'',parentId:'orgs'},
-        {id:'wolf',role:'Wolf of WallStreet',name:'',parentId:'wallstreet'},
-        {id:'tickets-resp',role:'Tickets Responsible',name:'',parentId:'admin-manager'},
-        {id:'admin-resp',role:'Administration Responsible',name:'',parentId:'admin-manager'},
-        {id:'entertainment',role:'Entertainment Responsible',name:'',parentId:'culture-manager'},
-        {id:'moderation',role:'Moderation Responsible',name:'',parentId:'culture-manager'},
-        {id:'influencer-resp',role:'Influencer Responsible',name:'',parentId:'culture-manager'},
-        {id:'gang-adms',role:'Gangs ADMs',name:'',parentId:'gangs-manager'},
-        {id:'legal-adm',role:'Legal ADM',name:'',parentId:'legal-manager'},
-        {id:'ws-resp',role:'WallStreet Responsible',name:'',parentId:'wolf'},
-        {id:'tickets-team',role:'Tickets Team ADM',name:'',parentId:'tickets-resp'},
-        {id:'knowledge',role:'Knowledge ADM',name:'',parentId:'admin-resp'},
-        {id:'discord',role:'Discord ADM',name:'',parentId:'admin-resp'},
-        {id:'action',role:'Action ADM',name:'',parentId:'entertainment'},
-        {id:'interactions',role:'Interactions ADM',name:'',parentId:'entertainment'},
-        {id:'calls',role:'Calls ADM',name:'',parentId:'moderation'},
-        {id:'order',role:'Order ADM',name:'',parentId:'moderation'},
-        {id:'influencer-team',role:'Influencer Team',name:'',parentId:'influencer-resp'},
-        {id:'ws-a',role:'WS_CriminalA ADM',name:'',parentId:'ws-resp'},
-        {id:'ws-b',role:'WS_CriminalB ADM',name:'',parentId:'ws-resp'}
-      ]
-    }
-  };
-}
-function ensureData(){
-  fs.mkdirSync(path.dirname(DATA_FILE),{recursive:true});
-  if(!fs.existsSync(DATA_FILE))fs.writeFileSync(DATA_FILE,JSON.stringify(starterData(),null,2));
-}
-function readData(){
-  ensureData();
-  const data=JSON.parse(fs.readFileSync(DATA_FILE,'utf8'));
-  if(!data.rosters || !data.permissions || !data.chart)throw new Error('Invalid portal data file');
-  for(const team of TEAMS){
-    if(!data.rosters[team])data.rosters[team]=emptyRoster();
-    for(const rank of RANKS)if(!Array.isArray(data.rosters[team][rank]))data.rosters[team][rank]=[];
-  }
-  return data;
-}
-function writeData(data){
-  const temp=DATA_FILE+'.tmp';
-  fs.writeFileSync(temp,JSON.stringify(data,null,2));
-  fs.renameSync(temp,DATA_FILE);
-}
-function canEdit(user,team,data){
-  return isManagement(user) || (Array.isArray(data.permissions[user.id]) && data.permissions[user.id].includes(team));
-}
 function validDiscordId(id){return typeof id==='string' && /^\d{17,20}$/.test(id);}
 function cleanMember(member){
   return {id:String(member.id),username:String(member.username||''),displayName:String(member.global_name||member.nick||member.username||member.id)};
 }
+function failDb(error){
+  console.error('Supabase error:', error);
+  const err=new Error(error?.message || 'Database request failed.');
+  err.status=500;
+  throw err;
+}
+async function audit(actor,action,entityType,entityId,oldData,newData){
+  const {error}=await supabase.from('permission_audit_log').insert({
+    actor_discord_id:String(actor.id),action,entity_type:entityType,
+    entity_id:entityId==null?null:String(entityId),
+    old_data:oldData??null,new_data:newData??null
+  });
+  if(error)failDb(error);
+}
+async function canEditTeam(user,team){
+  if(isManagement(user))return true;
+  const {data,error}=await supabase.from('team_permissions')
+    .select('team_id').eq('staff_discord_id',String(user.id)).eq('team_id',team).maybeSingle();
+  if(error)failDb(error);
+  return Boolean(data);
+}
+async function getTeamAccess(discordId){
+  const {data,error}=await supabase.from('team_permissions')
+    .select('team_id').eq('staff_discord_id',String(discordId));
+  if(error)failDb(error);
+  return (data||[]).map(row=>row.team_id);
+}
+async function upsertProfile(user,management=isManagement(user)){
+  const {error}=await supabase.from('staff_profiles').upsert({
+    discord_id:String(user.id),
+    username:String(user.username||'Unknown'),
+    display_name:String(user.global_name||user.displayName||user.username||'Unknown'),
+    avatar_hash:user.avatar||null,
+    is_management:!!management,
+    is_active:true,
+    last_login_at:new Date().toISOString()
+  },{onConflict:'discord_id'});
+  if(error)failDb(error);
+}
 
-app.get('/api/health',(req,res)=>res.json({ok:true,service:'kng-staff-portal'}));
+app.get('/api/health',(req,res)=>res.json({ok:true,service:'kng-staff-portal',database:'supabase'}));
+
 app.get('/auth/discord',(req,res)=>{
   const state=crypto.randomBytes(24).toString('hex');
   setCookie(res,STATE_COOKIE,state,600);
@@ -156,6 +148,7 @@ app.get('/auth/discord',(req,res)=>{
   });
   res.redirect('https://discord.com/oauth2/authorize?'+params.toString());
 });
+
 app.get('/auth/discord/callback',async(req,res)=>{
   const {code,state,error}=req.query;
   const expected=cookieValue(req,STATE_COOKIE);
@@ -176,105 +169,199 @@ app.get('/auth/discord/callback',async(req,res)=>{
     });
     const user=await userResponse.json();
     if(!userResponse.ok || !user.id)throw new Error('Could not retrieve Discord account');
+    await upsertProfile(user);
     setCookie(res,COOKIE,makeSession(user),7*86400);
     res.redirect('/');
   }catch(err){console.error('Discord OAuth failed:',err);res.redirect('/?login=failed');}
 });
-app.get('/api/me',(req,res)=>{
-  const user=getSession(req);
-  if(!user)return res.json({authenticated:false});
-  const data=readData();
-  res.json({
-    authenticated:true,user:{id:user.id,username:user.username,displayName:user.global_name||user.username,avatar:user.avatar},
-    management:isManagement(user),teams:isManagement(user)?TEAMS:(data.permissions[user.id]||[]),
-    teamLabels:TEAM_LABELS
-  });
+
+app.get('/api/me',async(req,res,next)=>{
+  try{
+    const user=getSession(req);
+    if(!user)return res.json({authenticated:false});
+    await upsertProfile(user);
+    const teams=await getTeamAccess(user.id);
+    res.json({
+      authenticated:true,
+      user:{id:user.id,username:user.username,displayName:user.global_name||user.username,avatar:user.avatar},
+      management:isManagement(user),teams:isManagement(user)?TEAMS:teams,teamLabels:TEAM_LABELS
+    });
+  }catch(err){next(err);}
 });
 app.post('/api/logout',(req,res)=>{clearCookie(res,COOKIE);res.json({ok:true});});
 
-app.get('/api/rosters',requireLogin,(req,res)=>{
-  const data=readData();
-  res.json({teams:TEAM_LABELS,rosters:data.rosters,ranks:RANKS,editable:TEAMS.filter(t=>canEdit(req.user,t,data)),management:isManagement(req.user)});
-});
-app.put('/api/rosters/:team',requireLogin,(req,res)=>{
-  const team=req.params.team;
-  if(!TEAMS.includes(team))return res.status(404).json({error:'Unknown team.'});
-  const data=readData();
-  if(!canEdit(req.user,team,data))return res.status(403).json({error:'You do not have ADM permission for this team.'});
-  const roster=req.body && req.body.roster;
-  if(!roster || typeof roster!=='object')return res.status(400).json({error:'Invalid roster.'});
-  const next=emptyRoster();
-  for(const rank of RANKS){
-    const members=roster[rank]||[];
-    if(!Array.isArray(members) || members.length>200)return res.status(400).json({error:`Invalid ${rank} list.`});
-    const seen=new Set();
-    for(const m of members){
-      if(!m || !validDiscordId(String(m.id)))return res.status(400).json({error:'Every roster member needs a valid Discord ID.'});
-      const id=String(m.id);
-      if(seen.has(id))return res.status(400).json({error:'A Discord account cannot appear twice in the same rank.'});
-      seen.add(id);
-      next[rank].push({id,username:String(m.username||'').slice(0,80),displayName:String(m.displayName||m.username||id).slice(0,80)});
+app.get('/api/rosters',requireLogin,async(req,res,next)=>{
+  try{
+    const {data,error}=await supabase.from('team_members')
+      .select('team_id,discord_id,username,display_name,rank,sort_order')
+      .order('sort_order',{ascending:true});
+    if(error)failDb(error);
+    const rosters={}; for(const team of TEAMS)rosters[team]=emptyRoster();
+    for(const row of data||[]){
+      if(!rosters[row.team_id] || !RANKS.includes(row.rank))continue;
+      rosters[row.team_id][row.rank].push({
+        id:row.discord_id,username:row.username||'',
+        displayName:row.display_name||row.username||row.discord_id
+      });
     }
-  }
-  data.rosters[team]=next;writeData(data);res.json({ok:true,roster:next});
+    const access=await getTeamAccess(req.user.id);
+    res.json({teams:TEAM_LABELS,rosters,ranks:RANKS,editable:isManagement(req.user)?TEAMS:access,management:isManagement(req.user)});
+  }catch(err){next(err);}
 });
 
-app.get('/api/management/permissions',requireManagement,(req,res)=>{
-  const data=readData();
-  res.json({permissions:data.permissions,teams:TEAM_LABELS});
-});
-app.put('/api/management/permissions/:userId',requireManagement,(req,res)=>{
-  const userId=String(req.params.userId);
-  if(!validDiscordId(userId))return res.status(400).json({error:'Invalid Discord user ID.'});
-  if(MANAGEMENT_IDS.has(userId))return res.status(400).json({error:'A management account cannot be changed here.'});
-  const teams=req.body && req.body.teams;
-  if(!Array.isArray(teams) || teams.some(t=>!TEAMS.includes(t)))return res.status(400).json({error:'Invalid team permissions.'});
-  const data=readData();
-  if(teams.length)data.permissions[userId]=[...new Set(teams)];
-  else delete data.permissions[userId];
-  writeData(data);
-  res.json({ok:true,teams:data.permissions[userId]||[]});
-});
-app.get('/api/management/staff-search',requireManagement,async(req,res)=>{
-  const query=String(req.query.q||'').trim();
-  if(query.length<2)return res.json({members:[]});
-  if(!BOT_TOKEN || !GUILD_ID)return res.status(503).json({error:'Staff search is not configured. Add DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in Render.'});
+app.put('/api/rosters/:team',requireLogin,async(req,res,next)=>{
   try{
+    const team=req.params.team;
+    if(!TEAMS.includes(team))return res.status(404).json({error:'Unknown team.'});
+    if(!await canEditTeam(req.user,team))return res.status(403).json({error:'You do not have ADM permission for this team.'});
+    const roster=req.body&&req.body.roster;
+    if(!roster || typeof roster!=='object')return res.status(400).json({error:'Invalid roster.'});
+    const rows=[];
+    for(const rank of RANKS){
+      const members=roster[rank]||[];
+      if(!Array.isArray(members)||members.length>200)return res.status(400).json({error:`Invalid ${rank} list.`});
+      for(let i=0;i<members.length;i++){
+        const m=members[i];
+        if(!m||!validDiscordId(String(m.id)))return res.status(400).json({error:'Every roster member needs a valid Discord ID.'});
+        rows.push({
+          discord_id:String(m.id),username:String(m.username||'').slice(0,80),
+          display_name:String(m.displayName||m.username||m.id).slice(0,80),
+          rank,sort_order:i
+        });
+      }
+    }
+    const {data:oldRows,error:readError}=await supabase.from('team_members')
+      .select('discord_id,username,display_name,rank,sort_order').eq('team_id',team);
+    if(readError)failDb(readError);
+    const {error}=await supabase.rpc('replace_team_roster',{
+      p_team_id:team,p_members:rows,p_actor:String(req.user.id)
+    });
+    if(error)failDb(error);
+    await audit(req.user,'roster.updated','team_roster',team,oldRows,rows);
+    const next=emptyRoster();
+    for(const row of rows)next[row.rank].push({id:row.discord_id,username:row.username,displayName:row.display_name});
+    res.json({ok:true,roster:next});
+  }catch(err){next(err);}
+});
+
+app.get('/api/management/permissions',requireManagement,async(req,res,next)=>{
+  try{
+    const {data:perms,error}=await supabase.from('team_permissions')
+      .select('team_id,staff_discord_id').order('granted_at',{ascending:true});
+    if(error)failDb(error);
+    const ids=[...new Set((perms||[]).map(p=>p.staff_discord_id))];
+    let profiles=[];
+    if(ids.length){
+      const result=await supabase.from('staff_profiles')
+        .select('discord_id,username,display_name').in('discord_id',ids);
+      if(result.error)failDb(result.error);
+      profiles=result.data||[];
+    }
+    const permissions={};
+    for(const row of perms||[]){
+      if(!permissions[row.staff_discord_id])permissions[row.staff_discord_id]=[];
+      permissions[row.staff_discord_id].push(row.team_id);
+    }
+    res.json({permissions,teams:TEAM_LABELS});
+  }catch(err){next(err);}
+});
+
+app.put('/api/management/permissions/:userId',requireManagement,async(req,res,next)=>{
+  try{
+    const userId=String(req.params.userId);
+    if(!validDiscordId(userId))return res.status(400).json({error:'Invalid Discord user ID.'});
+    if(MANAGEMENT_IDS.has(userId))return res.status(400).json({error:'A management account cannot be changed here.'});
+    const teams=req.body&&req.body.teams;
+    if(!Array.isArray(teams)||teams.some(t=>!TEAMS.includes(t)))return res.status(400).json({error:'Invalid team permissions.'});
+    const uniqueTeams=[...new Set(teams)];
+    const {data:oldRows,error:oldError}=await supabase.from('team_permissions')
+      .select('team_id').eq('staff_discord_id',userId);
+    if(oldError)failDb(oldError);
+    const oldTeams=(oldRows||[]).map(r=>r.team_id);
+    if(uniqueTeams.length && req.body.username){
+      const username=String(req.body.username||req.body.displayName||'Unknown').slice(0,80);
+      const displayName=String(req.body.displayName||username).slice(0,80);
+      const {error:profileError}=await supabase.from('staff_profiles').upsert({
+        discord_id:userId,username,display_name:displayName,is_management:false,is_active:true
+      },{onConflict:'discord_id'});
+      if(profileError)failDb(profileError);
+    }
+    const {error:permissionError}=await supabase.rpc('replace_team_permissions',{
+      p_staff_discord_id:userId,p_team_ids:uniqueTeams,p_actor:String(req.user.id)
+    });
+    if(permissionError)failDb(permissionError);
+    await audit(req.user,'team_permissions.updated','staff_permissions',userId,oldTeams,uniqueTeams);
+    res.json({ok:true,teams:uniqueTeams});
+  }catch(err){next(err);}
+});
+
+app.get('/api/management/staff-search',requireManagement,async(req,res,next)=>{
+  try{
+    const query=String(req.query.q||'').trim();
+    if(query.length<2)return res.json({members:[]});
+    if(!BOT_TOKEN||!GUILD_ID)return res.status(503).json({error:'Staff search is not configured. Add DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in Render.'});
     const url=`https://discord.com/api/v10/guilds/${encodeURIComponent(GUILD_ID)}/members/search?query=${encodeURIComponent(query)}&limit=25`;
     const response=await fetch(url,{headers:{Authorization:`Bot ${BOT_TOKEN}`}});
     const body=await response.json();
     if(!response.ok)throw new Error(body.message||'Discord member search failed');
-    res.json({members:body.map(entry=>({
-      ...cleanMember(entry.user||{}),nick:entry.nick||null
-    }))});
+    res.json({members:body.map(entry=>({...cleanMember({...entry.user,nick:entry.nick}),nick:entry.nick||null}))});
   }catch(err){console.error('Staff search failed:',err);res.status(502).json({error:'Discord staff search failed. Check the bot token, server ID and Server Members Intent.'});}
 });
 
-app.get('/api/chart',requireLogin,(req,res)=>{
-  const data=readData();
-  if(!isManagement(req.user))return res.status(403).json({error:'Management access required.'});
-  res.json(data.chart);
+app.get('/api/chart',requireManagement,async(req,res,next)=>{
+  try{
+    const {data,error}=await supabase.from('organisation_chart')
+      .select('id,role,name,parent_id,sort_order').order('sort_order',{ascending:true});
+    if(error)failDb(error);
+    const {data:settings,error:settingsError}=await supabase.from('portal_settings')
+      .select('setting_key,setting_value').in('setting_key',['chart_title','chart_subtitle']);
+    if(settingsError)failDb(settingsError);
+    const values=Object.fromEntries((settings||[]).map(x=>[x.setting_key,x.setting_value]));
+    res.json({
+      title:values.chart_title||'KNG ESTATE',
+      subtitle:values.chart_subtitle||'Organisation structure',
+      nodes:(data||[]).map(n=>({id:n.id,role:n.role,name:n.name,parentId:n.parent_id}))
+    });
+  }catch(err){next(err);}
 });
-app.put('/api/chart',requireManagement,(req,res)=>{
-  const chart=req.body;
-  if(!chart || !Array.isArray(chart.nodes) || chart.nodes.length>500)return res.status(400).json({error:'Invalid chart data.'});
-  const ids=new Set();
-  for(const node of chart.nodes){
-    if(!node || typeof node.id!=='string' || typeof node.role!=='string' || typeof node.name!=='string')return res.status(400).json({error:'Each position needs a role and name.'});
-    if(ids.has(node.id))return res.status(400).json({error:'Duplicate position ID.'});
-    ids.add(node.id);
-  }
-  for(const node of chart.nodes){
-    if(node.parentId!==null && !ids.has(node.parentId))return res.status(400).json({error:'A parent position could not be found.'});
-    let current=node;const seen=new Set([node.id]);
-    while(current.parentId){
-      if(seen.has(current.parentId))return res.status(400).json({error:'Positions cannot be placed underneath themselves.'});
-      seen.add(current.parentId);current=chart.nodes.find(n=>n.id===current.parentId);if(!current)break;
+
+app.put('/api/chart',requireManagement,async(req,res,next)=>{
+  try{
+    const chart=req.body;
+    if(!chart||!Array.isArray(chart.nodes)||chart.nodes.length>500)return res.status(400).json({error:'Invalid chart data.'});
+    const ids=new Set();
+    for(const node of chart.nodes){
+      if(!node||typeof node.id!=='string'||typeof node.role!=='string'||typeof node.name!=='string')return res.status(400).json({error:'Each position needs a role and name.'});
+      if(ids.has(node.id))return res.status(400).json({error:'Duplicate position ID.'});
+      ids.add(node.id);
     }
-  }
-  const data=readData();data.chart={title:'KNG ESTATE',subtitle:'Organisation structure',nodes:chart.nodes};writeData(data);
-  res.json({ok:true});
+    for(const node of chart.nodes){
+      if(node.parentId!==null&&!ids.has(node.parentId))return res.status(400).json({error:'A parent position could not be found.'});
+      let current=node;const seen=new Set([node.id]);
+      while(current.parentId){
+        if(seen.has(current.parentId))return res.status(400).json({error:'Positions cannot be placed underneath themselves.'});
+        seen.add(current.parentId);current=chart.nodes.find(n=>n.id===current.parentId);if(!current)break;
+      }
+    }
+    const {data:oldRows,error:oldError}=await supabase.from('organisation_chart').select('id,role,name,parent_id,sort_order');
+    if(oldError)failDb(oldError);
+    const nodes=chart.nodes.map((n,i)=>({
+      id:n.id,role:n.role.slice(0,100),name:n.name.slice(0,100),
+      parent_id:n.parentId||null,sort_order:i+1
+    }));
+    const {error}=await supabase.rpc('replace_organisation_chart',{
+      p_nodes:nodes,p_actor:String(req.user.id)
+    });
+    if(error)failDb(error);
+    await audit(req.user,'organisation_chart.updated','organisation_chart','all',oldRows,nodes);
+    res.json({ok:true});
+  }catch(err){next(err);}
 });
 
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
+app.use((err,req,res,next)=>{
+  console.error('Request failed:',err);
+  res.status(err.status||500).json({error:err.status?err.message:'Something went wrong while processing that request.'});
+});
+
 app.listen(PORT,()=>console.log(`KNG Staff Portal running on port ${PORT}`));

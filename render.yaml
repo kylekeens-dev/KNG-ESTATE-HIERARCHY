@@ -5,7 +5,3 @@ services:
     plan: starter
     buildCommand: npm install
     startCommand: npm start
-    disk:
-      name: kng-staff-data
-      mountPath: /var/data
-      sizeGB: 1
