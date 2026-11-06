@@ -1,10 +1,17 @@
 {
-  "name": "kng-estate-org-chart",
-  "version": "1.0.0",
+  "name": "kng-staff-management-portal",
+  "version": "2.0.0",
   "private": true,
-  "description": "Private-edit KNG Estate organisation chart",
+  "description": "KNG staff rosters and permission management portal",
   "main": "server.js",
-  "scripts": { "start": "node server.js", "dev": "node server.js" },
-  "engines": { "node": ">=18" },
-  "dependencies": { "express": "^4.21.2" }
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
 }
