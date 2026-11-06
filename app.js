@@ -123,11 +123,19 @@ async function showOrganisation(){
  try{chart=await api('/api/chart');renderOrganisation()}catch(err){$('pageContent').innerHTML=`<div class="notice">${esc(err.message)}</div>`}
 }
 function childrenOf(id){return chart.nodes.filter(n=>n.parentId===id)}
-function treeNode(node,root=false){return `<li><button class="node ${root?'root-node':''}" data-node="${esc(node.id)}">${esc(node.role)}${node.name?`<span class="person">${esc(node.name)}</span>`:''}</button>${childrenOf(node.id).length?`<ul>${childrenOf(node.id).map(n=>treeNode(n)).join('')}</ul>`:''}</li>`}
+let expandedChartNodes=new Set();
+function treeNode(node,root=false){
+ const kids=childrenOf(node.id),isOpen=expandedChartNodes.has(node.id);
+ return `<li class="tree-item ${root?'tree-root':''} ${isOpen?'is-open':''}"><div class="tree-node-row">${kids.length?`<button class="tree-toggle" data-toggle-node="${esc(node.id)}" aria-expanded="${isOpen}">${isOpen?'−':'+'}</button>`:`<span class="tree-toggle-placeholder"></span>`}<button class="node ${root?'root-node':''}" data-node="${esc(node.id)}"><strong>${esc(node.role)}</strong>${node.name?`<span class="person">${esc(node.name)}</span>`:''}</button></div>${kids.length?`<ul ${isOpen?'':'hidden'}>${kids.map(n=>treeNode(n)).join('')}</ul>`:''}</li>`
+}
 function renderOrganisation(){
- $('pageContent').innerHTML=pageHeading('MANAGEMENT ONLY','Organisation chart','Edit the full KNG leadership structure and reporting lines.')+
- `<div class="panel"><div class="form-actions" style="margin:0 0 15px"><button class="button button-primary" id="addPosition">Add position</button><button class="button button-quiet" id="exportChart">Export chart</button></div><div class="chart-panel"><ul class="tree">${chart.nodes.filter(n=>n.parentId===null).map(n=>treeNode(n,true)).join('')}</ul></div><div id="chartEditor" class="notice">Select a position to edit it, or add a new one.</div></div>`;
+ const roots=chart.nodes.filter(n=>n.parentId===null);
+ if(!expandedChartNodes.size)roots.forEach(n=>expandedChartNodes.add(n.id));
+ $('pageContent').innerHTML=`<div class="org-titlebar"><h1>KNG <em>ORGANISATION</em></h1></div><div class="panel org-panel"><div class="org-toolbar"><div><strong>Leadership structure</strong><small>Choose a branch to reveal positions beneath it. Select a role to edit.</small></div><div class="form-actions"><button class="button button-primary" id="addPosition">Add position</button><button class="button button-quiet" id="expandChart">Expand all</button><button class="button button-quiet" id="collapseChart">Collapse all</button><button class="button button-quiet" id="exportChart">Export</button></div></div><div class="chart-panel"><ul class="tree">${roots.map(n=>treeNode(n,true)).join('')}</ul></div><div id="chartEditor" class="notice">Select a position to edit it, or add a new one.</div></div>`;
  $('pageContent').querySelectorAll('[data-node]').forEach(b=>b.addEventListener('click',()=>editPosition(b.dataset.node)));
+ $('pageContent').querySelectorAll('[data-toggle-node]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.toggleNode;expandedChartNodes.has(id)?expandedChartNodes.delete(id):expandedChartNodes.add(id);renderOrganisation()}));
+ $('expandChart').addEventListener('click',()=>{chart.nodes.forEach(n=>{if(childrenOf(n.id).length)expandedChartNodes.add(n.id)});renderOrganisation()});
+ $('collapseChart').addEventListener('click',()=>{expandedChartNodes.clear();renderOrganisation()});
  $('addPosition').addEventListener('click',()=>editPosition(null));
  $('exportChart').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(chart,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kng-organisation-chart.json';a.click();URL.revokeObjectURL(a.href)});
 }
